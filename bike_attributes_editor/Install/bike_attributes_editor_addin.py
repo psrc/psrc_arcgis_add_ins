@@ -4,13 +4,52 @@ MXD = arcpy.mapping.MapDocument('CURRENT')
 undo_stack = list()
 redo_stack = list()
 
+class BikeLanesComboBox(object):
+    """Implementation for bike_attributes_editor_addin.BikeFacilityComboBox (ComboBox)"""
+    def __init__(self):
+        global bike_lanes_cv
+        self.items = []
+        self.bike_lanes_dict = {}
+        arcpy.DomainToTable_management(r'Database Connections\OSM_Sockeye.sde', 'BikeLanes2', 'in_memory/bike_lanes_cv', 'codeField', 'descriptionField') 
+        with arcpy.da.SearchCursor('in_memory/bike_lanes_cv', ['codeField', 'descriptionField']) as cursor:             
+                for row in cursor: 
+                    self.bike_lanes_dict[row[1]] = row[0]
+                    self.items.append(row[1])
+        #arcpy.Delete_management("in_memory/bike_lanes_cv")
+        bike_lanes_cv = self.bike_lanes_dict['Yes']
+        #self.cvd_dict = self.getCVDDict()
+        #self.items = ["item1", "item2"]
+        self.editable = True
+        self.enabled = True
+        self.dropdownWidth = 'WWW'
+        self.width = 'WWW'
+        self.value = "Yes"
+    def onSelChange(self, selection):
+        global bike_lanes_cv
+        bike_lanes_cv = self.bike_lanes_dict[selection]
+        pass
+    def onEditChange(self, text):
+        pass
+    def onFocus(self, focused):
+        pass
+    def onEnter(self):
+        pass
+    def refresh(self):
+        pass
+    #def getCVDDict(self):
+    #    cvd_dict = {}
+    #    arcpy.DomainToTable_management(r'Database Connections\OSM_Sockeye.sde', 'dBikeLanes', 'in_memory/cvdTable', 'codeField', 'descriptionField') 
+    #    for row in arcpy.SearchCursor('in_memory/cvdTable'):
+    #        cvd_dict[row[0]] = row[1]
+    #    return cvd_dict
+
 class BikeFacilityComboBox(object):
     """Implementation for bike_attributes_editor_addin.BikeFacilityComboBox (ComboBox)"""
     def __init__(self):
         global coded_value
         self.items = []
         self.cvd_dict = {}
-        arcpy.DomainToTable_management(r'T:\2020April\stefan\OSM_Sockeye.sde', 'dBikeLanes', 'in_memory/cvdTable', 'codeField', 'descriptionField') 
+        arcpy.DomainToTable_management(r'Database Connections\OSM_Sockeye.sde', 'dBikeLanes', 'in_memory/cvdTable', 'codeField', 'descriptionField') 
         with arcpy.da.SearchCursor('in_memory/cvdTable', ['codeField', 'descriptionField']) as cursor:             
                 for row in cursor: 
                     self.cvd_dict[row[1]] = row[0]
@@ -149,19 +188,27 @@ class UpdateBikeAttributesButton(object):
             # Get the name of the layer's OID field
             fn_oid = arcpy.Describe(lyr).OIDFieldName
 
-            with arcpy.da.UpdateCursor(lyr,[fn_oid, 'IJBikeFacility', 'JIBikeFacility']) as cursor:
+            with arcpy.da.UpdateCursor(lyr,[fn_oid, 'IJBikeLanes', 'JIBikeLanes', 'IJBikeFacility', 'JIBikeFacility']) as cursor:
                 for row in cursor:
                     if dir == 'Both':
-                        undo_stack.append((lyr, 'IJBikeFacility', fn_oid, row[0], row[1]))
-                        undo_stack.append((lyr, 'JIBikeFacility', fn_oid, row[0], row[2]))
-                        row[1] = coded_value
-                        row[2] = coded_value
+                        undo_stack.append((lyr, 'IJBikeLanes', fn_oid, row[0], row[1]))
+                        undo_stack.append((lyr, 'JIBikeLanes', fn_oid, row[0], row[2]))
+                        undo_stack.append((lyr, 'IJBikeFacility', fn_oid, row[0], row[3]))
+                        undo_stack.append((lyr, 'JIBikeFacility', fn_oid, row[0], row[4]))
+                        row[1] = bike_lanes_cv
+                        row[2] = bike_lanes_cv
+                        row[3] = coded_value
+                        row[4] = coded_value
                     elif dir == 'IJ':
-                        undo_stack.append((lyr, 'IJBikeFacility', fn_oid, row[0], row[1]))
-                        row[1] = coded_value
+                        undo_stack.append((lyr, 'IJBikeLanes', fn_oid, row[0], row[1]))
+                        undo_stack.append((lyr, 'IJBikeFacility', fn_oid, row[0], row[3]))
+                        row[1] = bike_lanes_cv
+                        row[3] = coded_value
                     else:
-                        undo_stack.append((lyr, 'JIBikeFacility', fn_oid, row[0], row[2]))
-                        row[2] = coded_value
+                        undo_stack.append((lyr, 'JIBikeLanes', fn_oid, row[0], row[2]))
+                        undo_stack.append((lyr, 'JIBikeFacility', fn_oid, row[0], row[4]))
+                        row[2] = bike_lanes_cv
+                        row[4] = coded_value
                     cursor.updateRow(row)
             pythonaddins.MessageBox('Updated %s rows!' % (len(edge_list)), 'title')
         #pythonaddins.MessageBox('Have you applied a definition query to all necessary layers?', 'Query check', 4)  
