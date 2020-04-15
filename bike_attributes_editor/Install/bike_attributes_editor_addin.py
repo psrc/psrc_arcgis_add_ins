@@ -4,6 +4,37 @@ MXD = arcpy.mapping.MapDocument('CURRENT')
 undo_stack = list()
 redo_stack = list()
 
+class BikeEditNotesComboBox(object):
+    """Implementation for bike_attributes_editor_addin.BikeFacilityComboBox (ComboBox)"""
+    def __init__(self):
+        global bike_edit_notes 
+        self.items = ['None', 'CENTERLINE INFO ONLY']
+        self.editable = True
+        self.enabled = True
+        self.dropdownWidth = 'WWW'
+        self.width = 'WWWWWW'
+        self.value = None
+        bike_edit_notes = ''
+    def onSelChange(self, selection):
+        global bike_edit_notes
+        bike_edit_notes = selection
+    def onEditChange(self, text):
+        global bike_edit_notes
+        bike_edit_notes = text
+    def onFocus(self, focused):
+        pass
+    def onEnter(self):
+        pass
+    def refresh(self):
+        pass
+    #def getCVDDict(self):
+    #    cvd_dict = {}
+    #    arcpy.DomainToTable_management(r'Database Connections\OSM_Sockeye.sde', 'dBikeLanes', 'in_memory/cvdTable', 'codeField', 'descriptionField') 
+    #    for row in arcpy.SearchCursor('in_memory/cvdTable'):
+    #        cvd_dict[row[0]] = row[1]
+    #    return cvd_dict
+
+
 class BikeLanesComboBox(object):
     """Implementation for bike_attributes_editor_addin.BikeFacilityComboBox (ComboBox)"""
     def __init__(self):
@@ -188,27 +219,48 @@ class UpdateBikeAttributesButton(object):
             # Get the name of the layer's OID field
             fn_oid = arcpy.Describe(lyr).OIDFieldName
 
-            with arcpy.da.UpdateCursor(lyr,[fn_oid, 'IJBikeLanes', 'JIBikeLanes', 'IJBikeFacility', 'JIBikeFacility']) as cursor:
+            with arcpy.da.UpdateCursor(lyr,[fn_oid, 'IJBikeLanes', 'JIBikeLanes', 'IJBikeFacility', 'JIBikeFacility', 'BikeEditorNotes']) as cursor:
                 for row in cursor:
                     if dir == 'Both':
                         undo_stack.append((lyr, 'IJBikeLanes', fn_oid, row[0], row[1]))
                         undo_stack.append((lyr, 'JIBikeLanes', fn_oid, row[0], row[2]))
                         undo_stack.append((lyr, 'IJBikeFacility', fn_oid, row[0], row[3]))
                         undo_stack.append((lyr, 'JIBikeFacility', fn_oid, row[0], row[4]))
+                        undo_stack.append((lyr, 'BikeEditorNotes', fn_oid, row[0], row[5]))
                         row[1] = bike_lanes_cv
                         row[2] = bike_lanes_cv
                         row[3] = coded_value
                         row[4] = coded_value
+                        if bike_edit_notes == 'None':
+                            row[5] = None
+                        else:
+                            row[5] = bike_edit_notes
+
+                        
+
+
                     elif dir == 'IJ':
                         undo_stack.append((lyr, 'IJBikeLanes', fn_oid, row[0], row[1]))
                         undo_stack.append((lyr, 'IJBikeFacility', fn_oid, row[0], row[3]))
+                        undo_stack.append((lyr, 'BikeEditorNotes', fn_oid, row[0], row[5]))
                         row[1] = bike_lanes_cv
                         row[3] = coded_value
+                        if bike_edit_notes == 'None':
+                            row[5] = None
+                        else:
+                            row[5] = bike_edit_notes
+
                     else:
                         undo_stack.append((lyr, 'JIBikeLanes', fn_oid, row[0], row[2]))
                         undo_stack.append((lyr, 'JIBikeFacility', fn_oid, row[0], row[4]))
+                        undo_stack.append((lyr, 'BikeEditorNotes', fn_oid, row[0], row[5]))
                         row[2] = bike_lanes_cv
                         row[4] = coded_value
+                        if bike_edit_notes == 'None':
+                            row[5] = None
+                        else:
+                            row[5] = bike_edit_notes
+
                     cursor.updateRow(row)
             pythonaddins.MessageBox('Updated %s rows!' % (len(edge_list)), 'title')
         #pythonaddins.MessageBox('Have you applied a definition query to all necessary layers?', 'Query check', 4)  
