@@ -4,6 +4,36 @@ MXD = arcpy.mapping.MapDocument('CURRENT')
 undo_stack = list()
 redo_stack = list()
 
+class BikeSourceComboBox(object):
+    """Implementation for bike_attributes_editor_addin.BikeFacilityComboBox (ComboBox)"""
+    def __init__(self):
+        global bike_source
+        self.items = ['Jurisdiction2020', 'None']
+        self.editable = True
+        self.enabled = True
+        self.dropdownWidth = 'WWW'
+        self.width = 'WWWWWW'
+        self.value = 'Jurisdiction2020'
+        bike_source = 'Jurisdiction2020'
+    def onSelChange(self, selection):
+        global bike_source
+        bike_source = selection
+    def onEditChange(self, text):
+        global bike_source
+        bike_source = text
+    def onFocus(self, focused):
+        pass
+    def onEnter(self):
+        pass
+    def refresh(self):
+        pass
+    #def getCVDDict(self):
+    #    cvd_dict = {}
+    #    arcpy.DomainToTable_management(r'Database Connections\OSM_Sockeye.sde', 'dBikeLanes', 'in_memory/cvdTable', 'codeField', 'descriptionField') 
+    #    for row in arcpy.SearchCursor('in_memory/cvdTable'):
+    #        cvd_dict[row[0]] = row[1]
+    #    return cvd_dict
+
 class BikeEditNotesComboBox(object):
     """Implementation for bike_attributes_editor_addin.BikeFacilityComboBox (ComboBox)"""
     def __init__(self):
@@ -14,7 +44,7 @@ class BikeEditNotesComboBox(object):
         self.dropdownWidth = 'WWW'
         self.width = 'WWWWWW'
         self.value = None
-        bike_edit_notes = ''
+        bike_edit_notes = 'None'
     def onSelChange(self, selection):
         global bike_edit_notes
         bike_edit_notes = selection
@@ -41,7 +71,7 @@ class BikeLanesComboBox(object):
         global bike_lanes_cv
         self.items = []
         self.bike_lanes_dict = {}
-        arcpy.DomainToTable_management(r'Database Connections\OSM_Sockeye.sde', 'BikeLanes2', 'in_memory/bike_lanes_cv', 'codeField', 'descriptionField') 
+        arcpy.DomainToTable_management(r'X:\Trans\Bicycle and Pedestrian\Data\BikeFacilities\2020_GDB_Update\OSM_Sockeye.sde', 'BikeLanes2', 'in_memory/bike_lanes_cv', 'codeField', 'descriptionField') 
         with arcpy.da.SearchCursor('in_memory/bike_lanes_cv', ['codeField', 'descriptionField']) as cursor:             
                 for row in cursor: 
                     self.bike_lanes_dict[row[1]] = row[0]
@@ -80,7 +110,7 @@ class BikeFacilityComboBox(object):
         global coded_value
         self.items = []
         self.cvd_dict = {}
-        arcpy.DomainToTable_management(r'Database Connections\OSM_Sockeye.sde', 'dBikeLanes', 'in_memory/cvdTable', 'codeField', 'descriptionField') 
+        arcpy.DomainToTable_management(r'X:\Trans\Bicycle and Pedestrian\Data\BikeFacilities\2020_GDB_Update\OSM_Sockeye.sde', 'dBikeLanes', 'in_memory/cvdTable', 'codeField', 'descriptionField') 
         with arcpy.da.SearchCursor('in_memory/cvdTable', ['codeField', 'descriptionField']) as cursor:             
                 for row in cursor: 
                     self.cvd_dict[row[1]] = row[0]
@@ -219,7 +249,7 @@ class UpdateBikeAttributesButton(object):
             # Get the name of the layer's OID field
             fn_oid = arcpy.Describe(lyr).OIDFieldName
 
-            with arcpy.da.UpdateCursor(lyr,[fn_oid, 'IJBikeLanes', 'JIBikeLanes', 'IJBikeFacility', 'JIBikeFacility', 'BikeEditorNotes']) as cursor:
+            with arcpy.da.UpdateCursor(lyr,[fn_oid, 'IJBikeLanes', 'JIBikeLanes', 'IJBikeFacility', 'JIBikeFacility', 'BikeEditorNotes', 'BikeSource']) as cursor:
                 for row in cursor:
                     if dir == 'Both':
                         undo_stack.append((lyr, 'IJBikeLanes', fn_oid, row[0], row[1]))
@@ -227,22 +257,19 @@ class UpdateBikeAttributesButton(object):
                         undo_stack.append((lyr, 'IJBikeFacility', fn_oid, row[0], row[3]))
                         undo_stack.append((lyr, 'JIBikeFacility', fn_oid, row[0], row[4]))
                         undo_stack.append((lyr, 'BikeEditorNotes', fn_oid, row[0], row[5]))
+                        undo_stack.append((lyr, 'BikeSource', fn_oid, row[0], row[6]))
                         row[1] = bike_lanes_cv
                         row[2] = bike_lanes_cv
                         row[3] = coded_value
                         row[4] = coded_value
-                        if bike_edit_notes == 'None':
-                            row[5] = None
-                        else:
-                            row[5] = bike_edit_notes
-
-                        
-
+                        row[5] = bike_edit_notes
+                        row[6] = bike_source
 
                     elif dir == 'IJ':
                         undo_stack.append((lyr, 'IJBikeLanes', fn_oid, row[0], row[1]))
                         undo_stack.append((lyr, 'IJBikeFacility', fn_oid, row[0], row[3]))
                         undo_stack.append((lyr, 'BikeEditorNotes', fn_oid, row[0], row[5]))
+                        undo_stack.append((lyr, 'BikeSource', fn_oid, row[0], row[6]))
                         row[1] = bike_lanes_cv
                         row[3] = coded_value
                         if bike_edit_notes == 'None':
@@ -250,16 +277,27 @@ class UpdateBikeAttributesButton(object):
                         else:
                             row[5] = bike_edit_notes
 
+                        if bike_source == 'None':
+                            row[6] = None
+                        else:
+                            row[6] = bike_source
+
                     else:
                         undo_stack.append((lyr, 'JIBikeLanes', fn_oid, row[0], row[2]))
                         undo_stack.append((lyr, 'JIBikeFacility', fn_oid, row[0], row[4]))
                         undo_stack.append((lyr, 'BikeEditorNotes', fn_oid, row[0], row[5]))
+                        undo_stack.append((lyr, 'BikeSource', fn_oid, row[0], row[6]))
                         row[2] = bike_lanes_cv
                         row[4] = coded_value
                         if bike_edit_notes == 'None':
                             row[5] = None
                         else:
                             row[5] = bike_edit_notes
+                        
+                        if bike_source == 'None':
+                            row[6] = None
+                        else:
+                            row[6] = bike_source
 
                     cursor.updateRow(row)
             pythonaddins.MessageBox('Updated %s rows!' % (len(edge_list)), 'title')
